@@ -1,0 +1,19 @@
+{
+    "name": "heiglandreas/phpdocgit",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Andreas Heigl",
+            "email": "andreas@heigl.org"
+        }
+    ],
+    "require": {
+        "symfony/console": "^3.3"
+    },
+    "autoload" : {
+        "psr-4": {
+            "PHPDocMeta\\" : "src/"
+        }
+    }
+}
