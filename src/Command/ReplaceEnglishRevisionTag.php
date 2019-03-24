@@ -30,6 +30,8 @@
 
 namespace PHPDocMeta\Command;
 
+use function file_get_contents;
+use function file_put_contents;
 use Org_Heigl\JUnitDiff\JUnitParser;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -92,47 +94,27 @@ class ReplaceEnglishRevisionTag extends Command
 
     protected function replace(\SplFileInfo $file, OutputInterface $output, $hashtable)
     {
-        $fh = fopen($file->getPathname(), 'r');
-        $start = fread($fh, 1024);
-        fclose($fh);
-        if (! preg_match('/<!--\s*EN-Revision:\s*(\d+)\s+/', $start, $results)) {
+        $content = file_get_contents($file->getPathname());
+        if (! preg_match('/<!--\s*EN-Revision:\s*(\d+)\s+/', $content, $results)) {
+            unset ($content);
             return;
         }
 
         if (! isset($hashtable[$results[1]])) {
-            $output->writeln(sprintf(
-                '<fg=red>Revision %1$s for file %2$s not found in HashTable',
-                $results[1],
-                $file->getPathname()
-            ));
+//            $output->writeln(sprintf(
+//                '<fg=red>Revision %1$s for file %2$s not found in HashTable',
+//                $results[1],
+//                $file->getPathname()
+//            ));
             return;
         }
 
         $hash = $hashtable[$results[1]];
 
-        $command = sprintf(
-            '%1$s "s/EN-Revision: %2$s/EN-Revision: %3$s/" %4$s',
-            $this->sedCommand,
-            $results[1],
-            $hash,
-            escapeshellarg($file->getPathname())
-        );
-
-        exec($command, $out, $return);
-
-        if ($return !== 0) {
-            $output->writeln(sprintf(
-                'There was an issue with the file %1$s',
-                $file->getPathname()
-            ));
-            return;
-        }
-
-        $output->writeln(sprintf(
-            '<fg=yellow>Replaced Revision %1$s with Hash %2$s in %3$s',
-            $results[1],
-            $hash,
-            $file->getPathname()
+        file_put_contents($file->getPathname(), str_replace(
+            'EN-Revision: ' . $results[1],
+            'EN-Revision: ' . $hashtable[$results[1]],
+            $content
         ));
     }
 
