@@ -32,7 +32,6 @@ namespace PHPDocMeta\Command;
 
 use function file_get_contents;
 use function file_put_contents;
-use Org_Heigl\JUnitDiff\JUnitParser;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -41,18 +40,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class ReplaceEnglishRevisionTag extends Command
 {
-    private $sedCommand = 'sed -i ';
-
-    public function __construct($name = null)
-    {
-        $uname = posix_uname();
-        if ($uname['sysname'] === 'Darwin') {
-            $this->sedCommand = 'sed -i "" ';
-        }
-
-        parent::__construct($name);
-    }
-
     protected function configure()
     {
         $this->setName('replaceEnglishRevisionTag')
