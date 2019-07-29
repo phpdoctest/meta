@@ -38,4 +38,5 @@ $app->setVersion('$Format: %H$');
 $app->setName('PHPDoc-meta(by Andreas Heigl and contributors)');
 
 $app->add(new \PHPDocMeta\Command\ReplaceEnglishRevisionTag());
+$app->add(new \PHPDocMeta\Command\ReplaceHashForRevisionInSvnRefTable());
 $app->run();
