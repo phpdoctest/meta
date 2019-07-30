@@ -10,26 +10,26 @@ declare(strict_types=1);
 
 namespace PHPDocMeta\Command;
 
+use function bin2hex;
 use function bindec;
+use function chdir;
 use function fclose;
 use function feof;
 use function file;
 use function file_exists;
-use function file_get_contents;
 use function file_put_contents;
 use function filesize;
-use function filesWalk;
 use function fopen;
 use function fread;
 use function fwrite;
 use function getcwd;
 use function hex2bin;
 use function implode;
-use function parse_attr_string;
 use function parse_ini_file;
 use function preg_match;
 use function rename;
 use RuntimeException;
+use SplFileInfo;
 use function sprintf;
 use function str_replace;
 use function strpos;
@@ -61,6 +61,12 @@ class ReplaceHashForRevisionInSvnRefTable extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        while (! file_exists(getcwd() . '/.git')) {
+            chdir(getcwd() . '/..');
+            if (getcwd() === '/') {
+                throw new RuntimeException('No GIT-directory found');
+            }
+        }
         if (!file_exists(getcwd() . self::METADATAFILE)) {
             throw new RuntimeException('No valid GIT-SVN directory.');
         }
@@ -71,9 +77,11 @@ class ReplaceHashForRevisionInSvnRefTable extends Command
             throw new RuntimeException('Something is wrong with your git-svn setup!');
         }
 
+        $branch = $input->getArgument('svnbranch');
+
         $branchreffile = getcwd() . sprintf(
                 self::BRANCHREFFILE,
-                $input->getArgument('svnbranch'),
+                $branch,
                 $info['uuid']
             );
         if (!file_exists($branchreffile)) {
@@ -97,8 +105,32 @@ class ReplaceHashForRevisionInSvnRefTable extends Command
             $output->writeln($result);
         }
         $this->replaceHashInRefsInfo($oldHash, $newHash);
-        $this->replaceHashInRefLog($oldHash, $newHash, $input->getArgument('svnbranch'));
         $this->replaceHashInPackedRefs($oldHash, $newHash);
+        $this->replaceHashInFile(
+            $oldHash,
+            $newHash,
+            new SplFileInfo(getcwd() . '/.git/logs/HEAD')
+        );
+        $this->replaceHashInFile(
+            $oldHash,
+            $newHash,
+            new SplFileInfo(getcwd() . '/.git/logs/refs/heads/master')
+        );
+        $this->replaceHashInFile(
+            $oldHash,
+            $newHash,
+            new SplFileInfo(getcwd() . '/.git/refs/original/refs/heads/master')
+        );
+        $this->replaceHashInFile(
+            $oldHash,
+            $newHash,
+            new SplFileInfo(getcwd() . '/.git/refs/remotes/origin/' . $branch)
+        );
+        $this->replaceHashInFile(
+            $oldHash,
+            $newHash,
+            new SplFileInfo(getcwd() . '/.git/logs/refs/remotes/origin/' . $branch)
+        );
     }
 
     private function replaceHashInRevMap($oldHash, $newHash, $branchreffile) : string
@@ -128,11 +160,11 @@ class ReplaceHashForRevisionInSvnRefTable extends Command
         fclose($new);
 
         if (filesize($branchreffile) === filesize($branchreffile . '.tmp')) {
-        //    unlink($branchreffile . '.tmp');
+            unlink($branchreffile . '.tmp');
         }
 
         if ($replacedRevision !== null) {
-            return sprintf('Replaced Hash for revision %1$s', bindec($replacedRevision));
+            return sprintf('Replaced Hash for revision %1$s', hexdec(bin2hex($replacedRevision)));
         }
 
         return '';
@@ -168,15 +200,13 @@ class ReplaceHashForRevisionInSvnRefTable extends Command
         file_put_contents($file, implode("", $fileContent));
     }
 
-    public function replaceHashInRefLog($oldHash, $newHash, $branch) : void
+    private function replaceHashInFile(string $oldHash, string $newHash, SplFileInfo $file) : void
     {
-        $file = getcwd() . '/.git/logs/refs/remotes/origin/' . $branch;
-
-        $fileContent = file($file);
+        $fileContent = file($file->getPathname());
         foreach ($fileContent as &$line) {
-            $line = str_replace($oldHash, strtolower($newHash), $line);
+            $line = str_replace($oldHash, $newHash, $line);
         }
 
-        file_put_contents($file, implode("", $fileContent));
+        file_put_contents($file->getPathname(), implode("", $fileContent));
     }
 }
