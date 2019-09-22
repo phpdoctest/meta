@@ -202,6 +202,10 @@ class ReplaceHashForRevisionInSvnRefTable extends Command
 
     private function replaceHashInFile(string $oldHash, string $newHash, SplFileInfo $file) : void
     {
+        if (! $file->isFile()) {
+            return;
+        }
+
         $fileContent = file($file->getPathname());
         foreach ($fileContent as &$line) {
             $line = str_replace($oldHash, $newHash, $line);

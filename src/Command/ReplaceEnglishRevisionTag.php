@@ -30,6 +30,8 @@
 
 namespace PHPDocMeta\Command;
 
+use function explode;
+use function file;
 use function file_get_contents;
 use function file_put_contents;
 use Symfony\Component\Console\Command\Command;
@@ -37,9 +39,19 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use function fopen;
+use function fwrite;
+use function getcwd;
+use function natcasesort;
+use function str_replace;
+use function strnatcasecmp;
 
 class ReplaceEnglishRevisionTag extends Command
 {
+    const LOCAL_HASH_FILE = '.en-revisions.ref';
+
+    private $hashTable = [];
+
     protected function configure()
     {
         $this->setName('replaceEnglishRevisionTag')
@@ -66,6 +78,7 @@ class ReplaceEnglishRevisionTag extends Command
 
         $hashtable = $this->parseHashTable($input->getOption('hashtable'));
 
+        $this->readLocalHashTable();
 
         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($folder));
 
@@ -77,6 +90,10 @@ class ReplaceEnglishRevisionTag extends Command
 
             $this->replace($file, $output, $hashtable);
         }
+
+        $this->writeLocalHashTable();
+
+
     }
 
     protected function replace(\SplFileInfo $file, OutputInterface $output, $hashtable)
@@ -97,12 +114,13 @@ class ReplaceEnglishRevisionTag extends Command
         }
 
         $hash = $hashtable[$results[1]];
+        $this->setHashTableValue($file->getPathname(), $hash);
 
-        file_put_contents($file->getPathname(), str_replace(
-            'EN-Revision: ' . $results[1],
-            'EN-Revision: ' . $hashtable[$results[1]],
-            $content
-        ));
+//        file_put_contents($file->getPathname(), str_replace(
+//            'EN-Revision: ' . $results[1],
+//            'EN-Revision: ' . $hashtable[$results[1]],
+//            $content
+//        ));
     }
 
     private function parseHashTable($hashtableUri)
@@ -116,5 +134,32 @@ class ReplaceEnglishRevisionTag extends Command
         }
 
         return $return;
+    }
+
+    private function readLocalHashTable()
+    {
+        foreach (file(getcwd() . '/' . self::LOCAL_HASH_FILE) as $line) {
+            $items = explode(': ', trim($line));
+            $this->hashTable[$items[0]] = $items[1];
+        }
+    }
+
+    private function writeLocalHashTable()
+    {
+        uasort($this->hashTable, 'strnatcasecmp');
+
+        $fh = fopen(getcwd() . '/' . self::LOCAL_HASH_FILE, 'w+');
+        foreach ($this->hashTable as $file => $hash) {
+            fwrite($fh, $file . ': ' . $hash . "\n");
+        }
+
+        fclose($fh);
+    }
+
+    private function setHashTableValue($filepath, $hash)
+    {
+        $relativeFilePath = ltrim(str_replace(getcwd(), '', $filepath), '/');
+
+        $this->hashTable[$relativeFilePath] = $hash;
     }
 }
