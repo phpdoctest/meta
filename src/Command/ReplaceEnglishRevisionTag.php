@@ -32,6 +32,7 @@ namespace PHPDocMeta\Command;
 
 use function explode;
 use function file;
+use function file_exists;
 use function file_get_contents;
 use function file_put_contents;
 use Symfony\Component\Console\Command\Command;
@@ -45,6 +46,7 @@ use function getcwd;
 use function natcasesort;
 use function str_replace;
 use function strnatcasecmp;
+use function touch;
 
 class ReplaceEnglishRevisionTag extends Command
 {
@@ -138,15 +140,18 @@ class ReplaceEnglishRevisionTag extends Command
 
     private function readLocalHashTable()
     {
+        if (! file_exists(getcwd() . '/' . self::LOCAL_HASH_FILE)) {
+            touch(getcwd() . '/' . self::LOCAL_HASH_FILE);
+        }
         foreach (file(getcwd() . '/' . self::LOCAL_HASH_FILE) as $line) {
-            $items = explode(': ', trim($line));
-            $this->hashTable[$items[0]] = $items[1];
+            $items = explode(':', trim($line));
+            $this->hashTable[trim($items[0])] = trim($items[1]);
         }
     }
 
     private function writeLocalHashTable()
     {
-        uasort($this->hashTable, 'strnatcasecmp');
+        uksort($this->hashTable, 'strnatcasecmp');
 
         $fh = fopen(getcwd() . '/' . self::LOCAL_HASH_FILE, 'w+');
         foreach ($this->hashTable as $file => $hash) {
